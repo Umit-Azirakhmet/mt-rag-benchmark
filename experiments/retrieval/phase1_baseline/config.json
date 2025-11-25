@@ -1,0 +1,13 @@
+{
+  "experiment_name": "phase1_baseline",
+  "base_model": "BAAI/bge-base-en-v1.5",
+  "epochs": 1,
+  "batch_size": 16,
+  "learning_rate": 2e-05,
+  "loss_function": "MultipleNegativesRankingLoss",
+  "use_augmentation": false,
+  "use_validation": false,
+  "use_data_splits": false,
+  "warmup_steps": 100,
+  "output_path": "./models/phase1_baseline"
+}
