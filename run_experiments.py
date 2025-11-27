@@ -92,19 +92,30 @@ def run_phase(phase_name, experiments):
         with open(config_file, 'w') as f:
             json.dump(config, f, indent=2)
         
-        # Training
+        # Training (skip if using existing model)
         train_log = exp_dir / "training.log"
-        model_path = f"./models/{exp_name}"
         
-        logging.info(f"Training model: {exp_name}")
-        train_success = run_training(config_file, train_log)
+        # Check if we should use an existing model
+        use_existing_model = config.get('use_existing_model', False)
+        existing_model_path = config.get('existing_model_path', None)
         
-        if not train_success:
-            logging.error(f"Training failed for {exp_name}. Check {train_log}")
-            continue
-        
-        # Wait a bit for model to be fully saved
-        time.sleep(5)
+        if use_existing_model and existing_model_path:
+            model_path = existing_model_path
+            logging.info(f"Using existing model: {model_path}")
+            if not pathlib.Path(model_path).exists():
+                logging.error(f"Existing model not found: {model_path}")
+                continue
+        else:
+            model_path = f"./models/{exp_name}"
+            logging.info(f"Training model: {exp_name}")
+            train_success = run_training(config_file, train_log)
+            
+            if not train_success:
+                logging.error(f"Training failed for {exp_name}. Check {train_log}")
+                continue
+            
+            # Wait a bit for model to be fully saved
+            time.sleep(5)
         
         # Evaluation
         eval_log = exp_dir / "evaluation.log"
@@ -249,63 +260,18 @@ def main():
     }
     
     # Phase 3: Retrieval Strategy
+    # Skip hybrid experiments (require Elasticsearch, marginal gains)
+    # Use best model (phase2_augmentation) for reranking
     phase3_experiments = {
-        "phase3_hybrid": {
-            "experiment_name": "phase3_hybrid",
-            "base_model": "BAAI/bge-base-en-v1.5",
-            "epochs": 3,
-            "batch_size": 32,
-            "learning_rate": 2e-5,
-            "loss_function": "MultipleNegativesRankingLoss",
-            "use_augmentation": False,
-            "use_validation": True,
-            "use_data_splits": True,
-            "warmup_steps": 100,
-            "evaluation_steps": 500,
-            "save_best_model": True,
-            "output_path": "./models/phase3_hybrid",
-            "retriever_type": "hybrid",
-            "hybrid_alpha": 0.5,
-            "use_reranking": False
-        },
-        "phase3_reranking": {
-            "experiment_name": "phase3_reranking",
-            "base_model": "BAAI/bge-base-en-v1.5",
-            "epochs": 3,
-            "batch_size": 32,
-            "learning_rate": 2e-5,
-            "loss_function": "MultipleNegativesRankingLoss",
-            "use_augmentation": False,
-            "use_validation": True,
-            "use_data_splits": True,
-            "warmup_steps": 100,
-            "evaluation_steps": 500,
-            "save_best_model": True,
-            "output_path": "./models/phase3_reranking",
+        "phase3_reranking_best_model": {
+            "experiment_name": "phase3_reranking_best_model",
+            "use_existing_model": True,
+            "existing_model_path": "./models/phase2_augmentation",
             "retriever_type": "dense",
             "use_reranking": True,
             "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
-            "top_k_rerank": 100
-        },
-        "phase3_hybrid_reranking": {
-            "experiment_name": "phase3_hybrid_reranking",
-            "base_model": "BAAI/bge-base-en-v1.5",
-            "epochs": 3,
-            "batch_size": 32,
-            "learning_rate": 2e-5,
-            "loss_function": "MultipleNegativesRankingLoss",
-            "use_augmentation": False,
-            "use_validation": True,
-            "use_data_splits": True,
-            "warmup_steps": 100,
-            "evaluation_steps": 500,
-            "save_best_model": True,
-            "output_path": "./models/phase3_hybrid_reranking",
-            "retriever_type": "hybrid",
-            "hybrid_alpha": 0.5,
-            "use_reranking": True,
-            "reranker_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
-            "top_k_rerank": 100
+            "top_k_rerank": 100,
+            "use_data_splits": True
         }
     }
     
